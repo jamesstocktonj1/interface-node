@@ -12,6 +12,8 @@ void init_serial(void);
 
 
 uint8_t comms_state;
+uint8_t input_buffer;
+
 
 
 void setup() {
@@ -26,10 +28,10 @@ void loop() {
 
   if(Serial.available()) {
 
-    uint8_t buf = Serial.read();
+    input_buffer = Serial.read();
 
     #ifdef ECHO
-    Serial.write(buf);
+    Serial.write(input_buffer);
     #endif
 
     set_flow1(TRANSMIT);
@@ -37,8 +39,8 @@ void loop() {
 
     delay(TX_DELAY);
 
-    Serial1.write(buf);
-    Serial2.write(buf);
+    Serial1.write(input_buffer);
+    Serial2.write(input_buffer);
 
     delay(TX_DELAY);
     
@@ -48,14 +50,14 @@ void loop() {
 
   if(Serial1.available()) {
 
-    uint8_t buf = Serial1.read();
-    Serial.write(buf);
+    input_buffer = Serial1.read();
+    Serial.write(input_buffer);
   }
 
   if(Serial2.available()) {
 
-    uint8_t buf = Serial2.read();
-    Serial.write(buf);
+    input_buffer = Serial2.read();
+    Serial.write(input_buffer);
   }
 }
 
