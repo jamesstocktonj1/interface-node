@@ -5,6 +5,8 @@
 #define TRANSMIT        1
 #define RECEIVE         0
 
+#define TX_DELAY        1
+
 
 // communication status
 #define STATE           0           // state [0:3]
