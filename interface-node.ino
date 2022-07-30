@@ -64,6 +64,10 @@ void loop() {
         
         if(input_buffer == END_CHAR) {
           comm_state = COM_END;
+
+          delay(TX_DELAY);
+          set_flow1(RECEIVE);
+          set_flow2(RECEIVE);
         }
       }
       break;
@@ -227,11 +231,11 @@ void init_serial() {
 
   Serial1.setTX(TX1);
   Serial1.setRX(RX1);
-  set_flow1(RECEIVE);
+  set_flow1(TRANSMIT);
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
-  set_flow2(RECEIVE);
+  set_flow2(TRANSMIT);
 
   Serial1.begin(9600);
   Serial2.begin(9600);
