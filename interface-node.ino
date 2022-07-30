@@ -151,6 +151,8 @@ void loop() {
           comm_state = COM_WAIT;
           set_flow1(TRANSMIT);
           set_flow2(TRANSMIT);
+
+          Serial.write("\n");
         }
       }
 
@@ -164,6 +166,8 @@ void loop() {
           comm_state = COM_WAIT;
           set_flow1(TRANSMIT);
           set_flow2(TRANSMIT);
+
+          Serial.write("\n");
         }
       }
       break;
@@ -261,6 +265,7 @@ void set_pins() {
     digitalWrite(USR2, state & (1 << 2));
     digitalWrite(USR3, state & (1 << 3));
 
+    digitalWrite(ACT, timer1);
     digitalWrite(ERR, state & 0x3);
   }
 }
@@ -272,6 +277,7 @@ void reset_leds() {
   digitalWrite(USR2, LOW);
   digitalWrite(USR3, LOW);
 
+  digitalWrite(ACT, LOW);
   digitalWrite(ERR, LOW);
 }
 
@@ -330,7 +336,7 @@ void set_flow2(uint8_t state) {
 
 void init_timer() {
 
-  timer1 = COMMS_TIMEOUT;
+  timer1 = 0;
 }
 
 void reset_timer() {
