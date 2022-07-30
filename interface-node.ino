@@ -4,12 +4,14 @@
 
 
 void init_pins(void);
-void set_pins();
+void set_pins(void);
+void reset_leds(void);
 void set_flow1(uint8_t state);
 void set_flow2(uint8_t state);
 
 void init_serial(void);
 uint8_t forward_data(void);
+void timeout_reply(void);
 
 void init_timer(void);
 void reset_timer(void);
@@ -178,11 +180,15 @@ void loop() {
     set_flow1(TRANSMIT);
     set_flow2(TRANSMIT);
 
+    reset_timer();
+
     if(comm_state == COM_END) {
       comm_state = COM_TIMEOUT;
+      timeout_reply();
     }
-    else {
+    else if(comm_state != COM_WAIT) {
       comm_state = COM_WAIT;
+      reset_leds();
     }
   }
 
@@ -259,6 +265,16 @@ void set_pins() {
   }
 }
 
+void reset_leds() {
+
+  digitalWrite(USR0, LOW);
+  digitalWrite(USR1, LOW);
+  digitalWrite(USR2, LOW);
+  digitalWrite(USR3, LOW);
+
+  digitalWrite(ERR, LOW);
+}
+
 
 void init_serial() {
 
@@ -288,6 +304,11 @@ uint8_t forward_data() {
   Serial2.write(temp);
 
   return temp;
+}
+
+void timeout_reply() {
+
+  Serial.write("RTE");
 }
 
 
