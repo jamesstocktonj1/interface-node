@@ -11,6 +11,9 @@ void set_flow2(uint8_t state);
 void init_serial(void);
 uint8_t forward_data(void);
 
+void init_timer(void);
+void reset_timer(void);
+
 
 enum {
   COM_WAIT,
@@ -25,6 +28,7 @@ enum {
 
 //uint8_t comms_state;
 uint8_t input_buffer;
+uint16_t timer1;
 
 
 
@@ -32,6 +36,7 @@ void setup() {
 
   init_pins();
   init_serial();
+  init_timer();
 
   comm_state = COM_WAIT;
 }
@@ -42,6 +47,8 @@ void loop() {
 
     case COM_WAIT:
       if(Serial.available()) {
+        reset_timer();
+
         input_buffer = forward_data();
 
         if(input_buffer == SEND_START_CHAR) {
@@ -52,6 +59,8 @@ void loop() {
 
     case COM_START:
       if(Serial.available()) {
+        reset_timer();
+
         input_buffer = forward_data();
 
         comm_state = COM_MID;
@@ -60,6 +69,8 @@ void loop() {
 
     case COM_MID:
       if(Serial.available()) {
+        reset_timer();
+
         input_buffer = forward_data();
         
         if(input_buffer == END_CHAR) {
@@ -74,6 +85,7 @@ void loop() {
 
     case COM_END:
       if(Serial1.available()) {
+        reset_timer();
 
         input_buffer = Serial1.read();
         Serial.write(input_buffer);
@@ -84,6 +96,7 @@ void loop() {
       }
 
       if(Serial2.available()) {
+        reset_timer();
 
         input_buffer = Serial2.read();
         Serial.write(input_buffer);
@@ -96,6 +109,7 @@ void loop() {
 
     case COM_REPLY:
       if(Serial1.available()) {
+        reset_timer();
 
         input_buffer = Serial1.read();
         Serial.write(input_buffer);
@@ -109,6 +123,7 @@ void loop() {
       }
 
       if(Serial2.available()) {
+        reset_timer();
 
         input_buffer = Serial2.read();
         Serial.write(input_buffer);
@@ -125,6 +140,7 @@ void loop() {
     case COM_ACK:
     case COM_NAK:
       if(Serial1.available()) {
+        reset_timer();
 
         input_buffer = Serial1.read();
         Serial.write(input_buffer);
@@ -137,6 +153,7 @@ void loop() {
       }
 
       if(Serial2.available()) {
+        reset_timer();
 
         input_buffer = Serial2.read();
         Serial.write(input_buffer);
@@ -152,7 +169,21 @@ void loop() {
     case COM_TIMEOUT:
       set_flow1(TRANSMIT);
       set_flow2(TRANSMIT);
+      comm_state = COM_WAIT;
       break;
+  }
+
+  if(timer1 == 0) {
+
+    set_flow1(TRANSMIT);
+    set_flow2(TRANSMIT);
+
+    if(comm_state == COM_END) {
+      comm_state = COM_TIMEOUT;
+    }
+    else {
+      comm_state = COM_WAIT;
+    }
   }
 
   set_pins();
@@ -160,7 +191,14 @@ void loop() {
 
 void setup1() {}
 
-void loop1() {}
+void loop1() {
+
+  if(timer1) {
+    timer1--;
+  }
+
+  delay(1);
+}
 
 
 
@@ -267,4 +305,14 @@ void set_flow2(uint8_t state) {
 
   digitalWrite(TXLED2, state);
   digitalWrite(RXLED2, !state);
+}
+
+void init_timer() {
+
+  timer1 = COMMS_TIMEOUT;
+}
+
+void reset_timer() {
+
+  timer1 = COMMS_TIMEOUT;
 }
