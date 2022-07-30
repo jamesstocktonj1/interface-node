@@ -7,16 +7,15 @@
 
 #define TX_DELAY        1
 
+// communication parameters
+#define BUFFER_SIZE     12
+#define SEND_START_CHAR 'S'
+#define REPLY_START_CHAR 'R'
+#define REPLY_ACK 'A'
+#define REPLY_NACK 'N'
+#define END_CHAR 'E'
 
 // communication status
 #define STATE           0           // state [0:3]
 #define FLOW1           4           // flow 1 [4]
 #define FLOW2           5           // flow 2 [5]
-
-// preset states
-#define RESET_STATE     0
-#define COM_START       4           // green states
-#define COM_END         8
-#define COM_MID         12
-#define COM_TIMEOUT     1           // red states
-#define COM_UNDEFINED   2

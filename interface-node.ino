@@ -4,14 +4,26 @@
 
 
 void init_pins(void);
-void set_pins(uint8_t state);
+void set_pins();
 void set_flow1(uint8_t state);
 void set_flow2(uint8_t state);
 
 void init_serial(void);
+uint8_t forward_data(void);
 
 
-uint8_t comms_state;
+enum {
+  COM_WAIT,
+  COM_START,
+  COM_MID,
+  COM_REPLY,
+  COM_END,
+  COM_ACK,
+  COM_NAK,
+  COM_TIMEOUT
+} comm_state;
+
+//uint8_t comms_state;
 uint8_t input_buffer;
 
 
@@ -21,44 +33,125 @@ void setup() {
   init_pins();
   init_serial();
 
-  comms_state = 0;
+  comm_state = COM_WAIT;
 }
 
 void loop() {
 
-  if(Serial.available()) {
+  switch(comm_state) {
 
-    input_buffer = Serial.read();
+    case COM_WAIT:
+      if(Serial.available()) {
+        input_buffer = forward_data();
 
-    #ifdef ECHO
-    Serial.write(input_buffer);
-    #endif
+        if(input_buffer == SEND_START_CHAR) {
+          comm_state = COM_START;
+        }
+      }
+      break;
 
-    set_flow1(TRANSMIT);
-    set_flow2(TRANSMIT);
+    case COM_START:
+      if(Serial.available()) {
+        input_buffer = forward_data();
 
-    delay(TX_DELAY);
+        comm_state = COM_MID;
+      }
+      break;
 
-    Serial1.write(input_buffer);
-    Serial2.write(input_buffer);
+    case COM_MID:
+      if(Serial.available()) {
+        input_buffer = forward_data();
+        
+        if(input_buffer == END_CHAR) {
+          comm_state = COM_END;
+        }
+      }
+      break;
 
-    delay(TX_DELAY);
+    case COM_END:
+      if(Serial1.available()) {
+
+        input_buffer = Serial1.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == REPLY_START_CHAR) {
+          comm_state = COM_REPLY;
+        }
+      }
+
+      if(Serial2.available()) {
+
+        input_buffer = Serial2.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == REPLY_START_CHAR) {
+          comm_state = COM_REPLY;
+        }
+      }
+      break;
+
+    case COM_REPLY:
+      if(Serial1.available()) {
+
+        input_buffer = Serial1.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == REPLY_ACK) {
+          comm_state = COM_ACK;
+        }
+        else if(input_buffer == REPLY_NACK) {
+          comm_state = COM_NAK;
+        }
+      }
+
+      if(Serial2.available()) {
+
+        input_buffer = Serial2.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == REPLY_ACK) {
+          comm_state = COM_ACK;
+        }
+        else if(input_buffer == REPLY_NACK) {
+          comm_state = COM_NAK;
+        }
+      }
+      break;
     
-    set_flow1(RECEIVE);
-    set_flow2(RECEIVE);
+    case COM_ACK:
+    case COM_NAK:
+      if(Serial1.available()) {
+
+        input_buffer = Serial1.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == END_CHAR) {
+          comm_state = COM_WAIT;
+          set_flow1(TRANSMIT);
+          set_flow2(TRANSMIT);
+        }
+      }
+
+      if(Serial2.available()) {
+
+        input_buffer = Serial2.read();
+        Serial.write(input_buffer);
+
+        if(input_buffer == END_CHAR) {
+          comm_state = COM_WAIT;
+          set_flow1(TRANSMIT);
+          set_flow2(TRANSMIT);
+        }
+      }
+      break;
+
+    case COM_TIMEOUT:
+      set_flow1(TRANSMIT);
+      set_flow2(TRANSMIT);
+      break;
   }
 
-  if(Serial1.available()) {
-
-    input_buffer = Serial1.read();
-    Serial.write(input_buffer);
-  }
-
-  if(Serial2.available()) {
-
-    input_buffer = Serial2.read();
-    Serial.write(input_buffer);
-  }
+  set_pins();
 }
 
 void setup1() {}
@@ -85,14 +178,43 @@ void init_pins() {
   digitalWrite(ERR, LOW);
 }
 
-void set_pins(uint8_t state) {
-  
-  digitalWrite(USR0, state & (1 << 0));
-  digitalWrite(USR1, state & (1 << 1));
-  digitalWrite(USR2, state & (1 << 2));
-  digitalWrite(USR3, state & (1 << 3));
+void set_pins() {
+  uint8_t state = 0;
 
-  digitalWrite(ERR, state & 0x3);
+  switch(comm_state) {
+    case COM_WAIT:
+      break;
+    case COM_START:
+      state = (1 << 2);
+      break;
+    case COM_MID:
+    case COM_END:
+      state = (1 << 2) | (1 << 3);
+      break;
+
+    case COM_REPLY:
+      state = (1 << 3);
+      break;
+    case COM_ACK:
+      state = (1 << 3);
+      break;
+    case COM_NAK:
+      state = (1 << 3) | (1 << 1);
+      break;
+    case COM_TIMEOUT:
+      state = (1 << 0);
+      break;
+  }
+  
+  if(state) {
+    
+    digitalWrite(USR0, state & (1 << 0));
+    digitalWrite(USR1, state & (1 << 1));
+    digitalWrite(USR2, state & (1 << 2));
+    digitalWrite(USR3, state & (1 << 3));
+
+    digitalWrite(ERR, state & 0x3);
+  }
 }
 
 
@@ -114,6 +236,16 @@ void init_serial() {
   Serial1.begin(9600);
   Serial2.begin(9600);
   Serial.begin();
+}
+
+uint8_t forward_data() {
+
+  uint8_t temp = Serial.read();
+
+  Serial1.write(temp);
+  Serial2.write(temp);
+
+  return temp;
 }
 
 
