@@ -184,8 +184,6 @@ void loop() {
     set_flow1(TRANSMIT);
     set_flow2(TRANSMIT);
 
-    reset_timer();
-
     if(comm_state == COM_END) {
       comm_state = COM_TIMEOUT;
       timeout_reply();
@@ -226,7 +224,7 @@ void init_pins() {
 
   pinMode(ACT, OUTPUT);
   pinMode(ERR, OUTPUT);
-  digitalWrite(ACT, HIGH);
+  digitalWrite(ACT, LOW);
   digitalWrite(ERR, LOW);
 }
 
@@ -265,9 +263,9 @@ void set_pins() {
     digitalWrite(USR2, state & (1 << 2));
     digitalWrite(USR3, state & (1 << 3));
 
-    digitalWrite(ACT, timer1);
     digitalWrite(ERR, state & 0x3);
   }
+  digitalWrite(ACT, timer1);
 }
 
 void reset_leds() {
