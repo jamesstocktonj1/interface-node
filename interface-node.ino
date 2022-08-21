@@ -10,11 +10,13 @@ void set_flow1(uint8_t state);
 void set_flow2(uint8_t state);
 
 void init_serial(void);
-uint8_t forward_data(void);
 void timeout_reply(void);
 
 void init_timer(void);
 void reset_timer(void);
+
+void parse_usb_serial(char c);
+void parse_serial(char c);
 
 
 enum {
@@ -45,138 +47,16 @@ void setup() {
 
 void loop() {
 
-  switch(comm_state) {
+  while(Serial.available()) {
+    parse_usb_serial(Serial.read());
+  }
 
-    case COM_WAIT:
-      if(Serial.available()) {
-        reset_timer();
+  while(Serial1.available()) {
+    parse_serial(Serial1.read());
+  }
 
-        input_buffer = forward_data();
-
-        if(input_buffer == SEND_START_CHAR) {
-          comm_state = COM_START;
-        }
-      }
-      break;
-
-    case COM_START:
-      if(Serial.available()) {
-        reset_timer();
-
-        input_buffer = forward_data();
-
-        comm_state = COM_MID;
-      }
-      break;
-
-    case COM_MID:
-      if(Serial.available()) {
-        reset_timer();
-
-        input_buffer = forward_data();
-        
-        if(input_buffer == END_CHAR) {
-          comm_state = COM_END;
-
-          delay(TX_DELAY);
-          set_flow1(RECEIVE);
-          set_flow2(RECEIVE);
-        }
-      }
-      break;
-
-    case COM_END:
-      if(Serial1.available()) {
-        reset_timer();
-
-        input_buffer = Serial1.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == REPLY_START_CHAR) {
-          comm_state = COM_REPLY;
-        }
-      }
-
-      if(Serial2.available()) {
-        reset_timer();
-
-        input_buffer = Serial2.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == REPLY_START_CHAR) {
-          comm_state = COM_REPLY;
-        }
-      }
-      break;
-
-    case COM_REPLY:
-      if(Serial1.available()) {
-        reset_timer();
-
-        input_buffer = Serial1.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == REPLY_ACK) {
-          comm_state = COM_ACK;
-        }
-        else if(input_buffer == REPLY_NACK) {
-          comm_state = COM_NAK;
-        }
-      }
-
-      if(Serial2.available()) {
-        reset_timer();
-
-        input_buffer = Serial2.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == REPLY_ACK) {
-          comm_state = COM_ACK;
-        }
-        else if(input_buffer == REPLY_NACK) {
-          comm_state = COM_NAK;
-        }
-      }
-      break;
-    
-    case COM_ACK:
-    case COM_NAK:
-      if(Serial1.available()) {
-        reset_timer();
-
-        input_buffer = Serial1.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == END_CHAR) {
-          comm_state = COM_WAIT;
-          set_flow1(TRANSMIT);
-          set_flow2(TRANSMIT);
-
-          Serial.write("\n");
-        }
-      }
-
-      if(Serial2.available()) {
-        reset_timer();
-
-        input_buffer = Serial2.read();
-        Serial.write(input_buffer);
-
-        if(input_buffer == END_CHAR) {
-          comm_state = COM_WAIT;
-          set_flow1(TRANSMIT);
-          set_flow2(TRANSMIT);
-
-          Serial.write("\n");
-        }
-      }
-      break;
-
-    case COM_TIMEOUT:
-      set_flow1(TRANSMIT);
-      set_flow2(TRANSMIT);
-      comm_state = COM_WAIT;
-      break;
+  while(Serial2.available()) {
+    parse_serial(Serial2.read());
   }
 
   if(timer1 == 0) {
@@ -193,17 +73,17 @@ void loop() {
       reset_leds();
     }
   }
-
-  set_pins();
 }
 
 void setup1() {}
 
 void loop1() {
 
-  if(timer1) {
+  if (timer1) {
     timer1--;
   }
+  
+  set_pins();
 
   delay(1);
 }
@@ -231,7 +111,7 @@ void init_pins() {
 void set_pins() {
   uint8_t state = 0;
 
-  switch(comm_state) {
+  switch (comm_state) {
     case COM_WAIT:
       break;
     case COM_START:
@@ -255,9 +135,9 @@ void set_pins() {
       state = (1 << 0);
       break;
   }
-  
-  if(state) {
-    
+
+  if (state) {
+
     digitalWrite(USR0, state & (1 << 0));
     digitalWrite(USR1, state & (1 << 1));
     digitalWrite(USR2, state & (1 << 2));
@@ -300,21 +180,10 @@ void init_serial() {
   Serial.begin();
 }
 
-uint8_t forward_data() {
-
-  uint8_t temp = Serial.read();
-
-  Serial1.write(temp);
-  Serial2.write(temp);
-
-  return temp;
-}
-
 void timeout_reply() {
 
-  Serial.write("RTE");
+  Serial.write("RTE\n");
 }
-
 
 void set_flow1(uint8_t state) {
 
@@ -332,6 +201,7 @@ void set_flow2(uint8_t state) {
   digitalWrite(RXLED2, !state);
 }
 
+
 void init_timer() {
 
   timer1 = 0;
@@ -340,4 +210,55 @@ void init_timer() {
 void reset_timer() {
 
   timer1 = COMMS_TIMEOUT;
+}
+
+
+void parse_usb_serial(char c) {
+  reset_timer();
+  
+  Serial.write(c);
+  Serial1.write(c);
+  Serial2.write(c);
+
+  if(c == SEND_START_CHAR) {
+    comm_state = COM_START;
+  }
+  else if (c == END_CHAR) {
+    comm_state = COM_END;
+    
+    Serial1.flush();
+    Serial2.flush();
+    
+    delay(TX_DELAY);
+    set_flow1(RECEIVE);
+    set_flow2(RECEIVE);
+  }
+  else {
+    comm_state = COM_MID;
+  }
+}
+
+void parse_serial(char c) {
+  reset_timer();
+
+  Serial.write(c);
+
+  if(c == REPLY_START_CHAR) {
+    comm_state = COM_REPLY;
+  }
+  else if(c == REPLY_ACK) {
+    comm_state = COM_ACK;
+  }
+  else if(c == REPLY_NACK) {
+    comm_state = COM_NAK;
+  }
+  else if(c == END_CHAR) {
+    comm_state = COM_WAIT;
+    
+    set_flow1(TRANSMIT);
+    set_flow2(TRANSMIT);
+
+    Serial.flush();
+    Serial.write("\n");
+  }
 }
