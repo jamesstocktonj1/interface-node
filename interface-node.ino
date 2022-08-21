@@ -10,12 +10,10 @@ void set_flow1(uint8_t state);
 void set_flow2(uint8_t state);
 
 void init_serial(void);
-uint8_t forward_data(void);
 void timeout_reply(void);
 
 void init_timer(void);
 void reset_timer(void);
-void check_timeout(void);
 
 void parse_usb_serial(char c);
 void parse_serial(char c);
@@ -49,16 +47,15 @@ void setup() {
 
 void loop() {
 
-  while (Serial.available()) {
-    char buf = (char) Serial.read();
-    parse_usb_serial(buf);
+  while(Serial.available()) {
+    parse_usb_serial(Serial.read());
   }
 
-  while (Serial1.available()) {
+  while(Serial1.available()) {
     parse_serial(Serial1.read());
   }
 
-  while (Serial2.available()) {
+  while(Serial2.available()) {
     parse_serial(Serial2.read());
   }
 
@@ -183,21 +180,10 @@ void init_serial() {
   Serial.begin();
 }
 
-uint8_t forward_data() {
-
-  uint8_t temp = Serial.read();
-
-  Serial1.write(temp);
-  Serial2.write(temp);
-
-  return temp;
-}
-
 void timeout_reply() {
 
   Serial.write("RTE\n");
 }
-
 
 void set_flow1(uint8_t state) {
 
@@ -215,6 +201,7 @@ void set_flow2(uint8_t state) {
   digitalWrite(RXLED2, !state);
 }
 
+
 void init_timer() {
 
   timer1 = 0;
@@ -224,6 +211,7 @@ void reset_timer() {
 
   timer1 = COMMS_TIMEOUT;
 }
+
 
 void parse_usb_serial(char c) {
   reset_timer();
@@ -270,6 +258,7 @@ void parse_serial(char c) {
     set_flow1(TRANSMIT);
     set_flow2(TRANSMIT);
 
+    Serial.flush();
     Serial.write("\n");
   }
 }
